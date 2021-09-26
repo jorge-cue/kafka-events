@@ -1,0 +1,29 @@
+{
+  "type": "record",
+  "name": "MachineEvent",
+  "namespace": "mx.jhcue.poc.kafkaevents.avro",
+  "fields": [
+    {
+      "name": "eventType",
+      "type": "EventTypeEnum"
+    },
+    {
+      "name": "timestamp",
+      "type": "long"
+    },
+    {
+      "name": "operatorId",
+      "type": ["null", "string"],
+      "default": null
+    },
+    {
+      "name": "sensors",
+      "type": ["null",  {
+        "type": "array",
+        "items": "SensorValue"
+        }
+      ],
+      "default": null
+    }
+  ]
+}

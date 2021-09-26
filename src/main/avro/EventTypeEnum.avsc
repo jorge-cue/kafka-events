@@ -1,0 +1,6 @@
+{
+  "type": "enum",
+  "name": "EventTypeEnum",
+  "namespace": "mx.jhcue.poc.kafkaevents.avro",
+  "symbols": ["START", "STOP", "STATUS", "BREAK", "RESUME"]
+}

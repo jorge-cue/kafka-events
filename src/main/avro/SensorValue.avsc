@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "SensorValue",
+  "namespace": "mx.jhcue.poc.kafkaevents.avro",
+  "fields": [
+    {
+      "name": "sensorId",
+      "type": "string"
+    },
+    {
+      "name": "value",
+      "type": "double"
+    }
+  ]
+}

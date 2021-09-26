@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info:
+  title: Kafka Events API
+  description: |
+    Kafka events Proof of Concept will receive events using its REST API through the POST /events entrypoint
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /v1/events:
+    post:
+      description: |
+        Registers a new event from a sensor in a machine
+      requestBody:
+        $ref: "#/components/schemas/event"
+      responses:
+        202:
+          description: The even has been accepted for processing.
+        429:
+          description: Too many requests
+components:
+  schemas:
+    event:
+      items:
+        - machineId
+          type: string
+        - eventType
+          type: string
+        - timestamp
+          type: integer
+        - sensors
+          minItems: 1
+          maxItems: 50
+          type: array
+          items:
+            $ref: "#/components/schemas/sensor"
+    sensor:
+      items:
+        - name
+          type: string
+        - value
+          type: integer

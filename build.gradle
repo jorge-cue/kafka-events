@@ -2,6 +2,7 @@ plugins {
     id 'org.springframework.boot' version '2.5.5'
     id 'io.spring.dependency-management' version '1.0.11.RELEASE'
     id 'java'
+    id "com.github.davidmc24.gradle.plugin.avro" version "1.2.1"
 }
 
 group = 'mx.jhcue.poc'
@@ -28,8 +29,26 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.kafka:spring-kafka-test'
+
+    implementation 'org.apache.avro:avro:1.10.1'
+
+    implementation "org.mapstruct:mapstruct:1.4.2.Final"
+    annotationProcessor "org.mapstruct:mapstruct-processor:1.4.2.Final"
+
+    testAnnotationProcessor "org.mapstruct:mapstruct-processor:1.4.2.Final"
 }
 
 test {
     useJUnitPlatform()
+}
+
+avro {
+    // createSetters true
+    // createOptionalGetters false
+    // gettersReturnOptional true
+    // optionalGettersForNullableFieldsOnly true
+    // fieldVisibility "PRIVATE"
+    // outputCharacterEncoding "UTF-8"
+    // stringType "string"
+    // enableDecimalLogicalType true
 }
