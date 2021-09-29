@@ -42,20 +42,16 @@ import static org.mockito.Mockito.verify;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @DirtiesContext
-@EmbeddedKafka(
-        partitions = 1,
-        brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092"},
-        topics = {"${application.machine-event-topic}"}
-)
+@EmbeddedKafka(partitions = 1, brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092"}, topics = {"${application.machine-event-topic}"})
 class EmbeddedKafkaIntegrationTest {
 
     private static final Logger log = LoggerFactory.getLogger(EmbeddedKafkaIntegrationTest.class);
 
     @Autowired
-    MachineEventKafkaProducer producer;
+    MachineEventKafkaProducer machineEventKafkaProducer;
 
     @SpyBean
-    MachineEventKafkaListener consumer;
+    MachineEventKafkaListener machineEventKafkaListener;
 
     @MockBean
     ProcessMachineEventService processMachineEventService;
@@ -75,29 +71,33 @@ class EmbeddedKafkaIntegrationTest {
                     , consumerRecord.value().getClass().getName(), consumerRecord.key(), consumerRecord.value());
             latch.countDown();
             return null;
-        }).when(consumer).receive(any());
+        }).doCallRealMethod().when(machineEventKafkaListener).receive(any());
     }
 
     @ParameterizedTest(name = INDEX_PLACEHOLDER + ": {0}")
     @MethodSource("machineEventStream")
     void produceListenMachineEvent(final String displayName, final MachineEvent actual) throws Exception {
 
-        producer.send(actual);
+        machineEventKafkaProducer.send(actual);
         final var receivedOnTime = latch.await(30, TimeUnit.SECONDS);
 
-        verify(consumer).receive(consumerRecordArgumentCaptor.capture());
+        verify(machineEventKafkaListener).receive(consumerRecordArgumentCaptor.capture());
         final var received = consumerRecordArgumentCaptor.getValue().value();
         assertAll(
-                () -> assertTrue(receivedOnTime, "Message was received on listener on time"),
-                () -> assertEquals(actual, received, "Received and Sent records are equal")
+                () -> assertTrue(receivedOnTime, "Message was received at listener on time"),
+                () -> assertEquals(actual.getClass(), received.getClass(), "Sent and Received are of same class"),
+                () -> assertEquals(actual, received, "Sent and received records are equal")
         );
     }
 
     private static Stream<Arguments> machineEventStream() {
         final String machineId = UUID.randomUUID().toString();
         final String operatorId = UUID.randomUUID().toString();
+        final String sensor1Id = UUID.randomUUID().toString();
+        final String sensor2Id = UUID.randomUUID().toString();
+
         return Stream.of(
-                Arguments.of("MachineEvent START",
+                Arguments.of("MachineEvent START Event without sensors",
                         MachineEvent.newBuilder()
                                 .setEventType(EventTypeEnum.START)
                                 .setTimestamp(System.currentTimeMillis())
@@ -105,18 +105,40 @@ class EmbeddedKafkaIntegrationTest {
                                 .setOperatorId(operatorId)
                                 .setSensors(List.of())
                                 .build()),
-                Arguments.of("MachineEvent STATUS with sensors values",
+                Arguments.of("MachineEvent STATUS Event with sensors values",
                         MachineEvent.newBuilder()
                                 .setEventType(EventTypeEnum.STATUS)
                                 .setTimestamp(System.currentTimeMillis())
                                 .setMachineId(machineId)
                                 .setOperatorId(operatorId)
                                 .setSensors(List.of(
-                                        SensorValue.newBuilder().setSensorId("a").setValue(1.0).build(),
-                                        SensorValue.newBuilder().setSensorId("b").setValue(0.8).build()
+                                        SensorValue.newBuilder().setSensorId(sensor1Id).setValue(1.0).build(),
+                                        SensorValue.newBuilder().setSensorId(sensor2Id).setValue(0.8).build()
                                 ))
                                 .build()),
-                Arguments.of("MachineEvent STOP",
+                Arguments.of("MachineEvent BREAK Event with sensors",
+                        MachineEvent.newBuilder()
+                                .setEventType(EventTypeEnum.BREAK)
+                                .setTimestamp(System.currentTimeMillis())
+                                .setMachineId(machineId)
+                                .setOperatorId(operatorId)
+                                .setSensors(List.of(
+                                        SensorValue.newBuilder().setSensorId(sensor1Id).setValue(-1.0).build(),
+                                        SensorValue.newBuilder().setSensorId(sensor2Id).setValue(0.3).build()
+                                ))
+                                .build()),
+                Arguments.of("MachineEvent RESUME Event with sensors",
+                        MachineEvent.newBuilder()
+                                .setEventType(EventTypeEnum.RESUME)
+                                .setTimestamp(System.currentTimeMillis())
+                                .setMachineId(machineId)
+                                .setOperatorId(operatorId)
+                                .setSensors(List.of(
+                                        SensorValue.newBuilder().setSensorId(sensor1Id).setValue(0.8).build(),
+                                        SensorValue.newBuilder().setSensorId(sensor2Id).setValue(0.9).build()
+                                ))
+                                .build()),
+                Arguments.of("MachineEvent STOP Event without sensors",
                         MachineEvent.newBuilder()
                                 .setEventType(EventTypeEnum.STOP)
                                 .setTimestamp(System.currentTimeMillis())
@@ -129,6 +151,12 @@ class EmbeddedKafkaIntegrationTest {
     @TestConfiguration
     static class EmbeddedKafkaConfiguration {
 
+        /**
+         * Mock Avro Schema Registry Client, this provide schema registry between Provider's Value Serializer and
+         * Listener's Value Deserializer.
+         *
+         * @return The MockSchemaRegistryClient instance. It is not configurable. Available using mock://id URL.
+         */
         @Bean
         public SchemaRegistryClient schemaRegistryClient() {
             return new MockSchemaRegistryClient();
