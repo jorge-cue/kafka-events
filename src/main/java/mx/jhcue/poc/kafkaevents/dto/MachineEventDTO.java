@@ -14,6 +14,7 @@ import java.util.List;
 public class MachineEventDTO {
     private String eventType;
     private long timestamp;
+    private String machineId;
     private String operatorId;
     private List<SensorValueDTO> sensors;
 }

@@ -31,6 +31,7 @@ class MachineEventMapperTest {
         final MachineEventDTO dto = MachineEventDTO.builder()
                 .eventType("START")
                 .timestamp(System.currentTimeMillis())
+                .machineId(UUID.randomUUID().toString())
                 .operatorId(UUID.randomUUID().toString())
                 .sensors(List.of(
                         SensorValueDTO.builder()
@@ -46,6 +47,7 @@ class MachineEventMapperTest {
                 () -> assertNotNull(avro),
                 () -> assertNotNull(dto),
                 () -> assertEquals(dto.getEventType(), avro.getEventType().name()),
+                () -> assertEquals(dto.getMachineId(), avro.getMachineId()),
                 () -> assertEquals(dto.getOperatorId(), avro.getOperatorId()),
                 () -> assertEquals(dto.getTimestamp(), avro.getTimestamp()),
                 () -> assertEquals(dto.getSensors().size(), avro.getSensors().size())
@@ -56,6 +58,7 @@ class MachineEventMapperTest {
     void mapsAvroToDto() {
         final MachineEvent avro = MachineEvent.newBuilder()
                 .setEventType(EventTypeEnum.START)
+                .setMachineId(UUID.randomUUID().toString())
                 .setOperatorId(UUID.randomUUID().toString())
                 .setTimestamp(System.currentTimeMillis())
                 .setSensors(List.of(
@@ -72,6 +75,7 @@ class MachineEventMapperTest {
                 () -> assertNotNull(avro),
                 () -> assertNotNull(dto),
                 () -> assertEquals(avro.getEventType().name(), dto.getEventType()),
+                () -> assertEquals(avro.getMachineId(), dto.getMachineId()),
                 () -> assertEquals(avro.getOperatorId(), dto.getOperatorId()),
                 () -> assertEquals(avro.getTimestamp(), dto.getTimestamp()),
                 () -> assertEquals(avro.getSensors().size(), dto.getSensors().size())

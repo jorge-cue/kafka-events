@@ -69,10 +69,10 @@ class EmbeddedKafkaIntegrationTest {
     void setUp() {
         latch = new CountDownLatch(1);
         doAnswer(invoke -> {
-            latch.countDown();
             @SuppressWarnings("unchecked")
-            ConsumerRecord<String, MachineEvent> consumerRecord = invoke.getArgument(0, ConsumerRecord.class);
+            final var consumerRecord = invoke.getArgument(0, ConsumerRecord.class);
             log.info("Received record\nKey: {}\nData: {}", consumerRecord.key(), consumerRecord.value());
+            latch.countDown();
             return null;
         }).when(consumer).receive(any());
     }
@@ -82,12 +82,13 @@ class EmbeddedKafkaIntegrationTest {
     void produceListenMachineEvent(final String displayName, final MachineEvent actual) throws Exception {
 
         producer.send(actual);
-        boolean received = latch.await(1, TimeUnit.SECONDS);
+        final var receivedOnTime = latch.await(30, TimeUnit.SECONDS);
 
         verify(consumer).receive(consumerRecordArgumentCaptor.capture());
+        final var received = consumerRecordArgumentCaptor.getValue().value();
         assertAll(
-                () -> assertTrue(received, "Message was received on listener on time"),
-                () -> assertEquals(actual, consumerRecordArgumentCaptor.getValue().value(), "Received and Sent records are equal")
+                () -> assertTrue(receivedOnTime, "Message was received on listener on time"),
+                () -> assertEquals(actual, received, "Received and Sent records are equal")
         );
     }
 

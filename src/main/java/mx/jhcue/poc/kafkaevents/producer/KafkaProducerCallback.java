@@ -23,9 +23,10 @@ public class KafkaProducerCallback<K, V> implements ListenableFutureCallback<Sen
         if (result == null) return;
         var metadata = result.getRecordMetadata();
         var producerRecord = result.getProducerRecord();
-        log.info("Success sending message of type {} to topic {}, partition {}, offset {}, timestamp {}\nData: {}",
+        log.info("Success sending message of type {} to topic {}, partition {}, offset {}, timestamp {}\nKey: {}\nData: {}",
                 producerRecord.value().getClass().getName(),
                 metadata.topic(), metadata.partition(), metadata.offset(), ZonedDateTime.ofInstant(Instant.ofEpochSecond(metadata.timestamp()), ZoneOffset.UTC),
+                producerRecord.key(),
                 producerRecord.value());
     }
 }
