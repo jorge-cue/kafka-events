@@ -1,9 +1,10 @@
 #
 #
 
+# Settings in this sections are applied to all profiles
+
 spring:
   kafka:
-    bootstrap-servers: localhost:9092
     client-id: proof-of-concept-001
     admin:
       fail-fast: true
@@ -18,7 +19,6 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
       properties:
-        schema.registry.url: mock://kafka_events
         # Use specific record or we get Avro GenericRecord
         specific.avro.reader: true
     producer:
@@ -27,8 +27,6 @@ spring:
       retries: 3
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
-      properties:
-        schema.registry.url: mock://kafka_events
   application:
     admin:
       enabled: true
@@ -43,3 +41,19 @@ management:
 
 application:
   machine-event-topic: evt_machine_event
+
+---
+# Settings in this section are applied for test profile additionally to settings in global section above or override
+# settings above
+
+spring:
+  profiles:
+    active: test
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      properties:
+        schema.registry.url: mock://kafka_events
+    producer:
+      properties:
+        schema.registry.url: mock://kafka_events

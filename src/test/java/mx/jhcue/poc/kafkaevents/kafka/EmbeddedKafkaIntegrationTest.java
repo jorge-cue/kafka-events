@@ -40,7 +40,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @DirtiesContext
 @EmbeddedKafka(
         partitions = 1,
@@ -71,7 +71,8 @@ class EmbeddedKafkaIntegrationTest {
         doAnswer(invoke -> {
             @SuppressWarnings("unchecked")
             final var consumerRecord = invoke.getArgument(0, ConsumerRecord.class);
-            log.info("Received record\nKey: {}\nData: {}", consumerRecord.key(), consumerRecord.value());
+            log.info("Received record type {}\nKey: {}\nData: {}"
+                    , consumerRecord.value().getClass().getName(), consumerRecord.key(), consumerRecord.value());
             latch.countDown();
             return null;
         }).when(consumer).receive(any());
