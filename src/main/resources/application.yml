@@ -1,8 +1,5 @@
 #
 #
-#
-
-
 
 spring:
   kafka:
@@ -10,33 +7,32 @@ spring:
     client-id: proof-of-concept-001
     admin:
       fail-fast: true
-    template:
-      default-topic: default-topic
     consumer:
       enable-auto-commit: true
       auto-offset-reset: earliest
       fetch-max-wait: 1m
       fetch-min-size: 1
-      heartbeat-interval: 1m
       isolation-level: read_committed
       max-poll-records: 50
       group-id: Proof_Of_Concept~Producer~Listener~001
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+      properties:
+        schema.registry.url: mock://kafka_events
+        # Use specific record or we get Avro GenericRecord
+        specific.avro.reader: true
     producer:
       acks: all
       batch-size: 10
       retries: 3
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      properties:
+        schema.registry.url: mock://kafka_events
   application:
     admin:
       enabled: true
     name: kafka-events
-server:
-  http2:
-    enabled: true
-  port: 8080
 
 management:
   health:

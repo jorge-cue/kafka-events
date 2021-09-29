@@ -12,18 +12,20 @@
       "type": "long"
     },
     {
+      "name": "machineId",
+      "type": "string"
+    },
+    {
       "name": "operatorId",
-      "type": ["null", "string"],
-      "default": null
+      "type": "string"
     },
     {
       "name": "sensors",
-      "type": ["null",  {
+      "type": {
         "type": "array",
         "items": "SensorValue"
-        }
-      ],
-      "default": null
+      },
+      "default": []
     }
   ]
 }

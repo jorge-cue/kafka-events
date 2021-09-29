@@ -1,26 +1,24 @@
-package mx.jhcue.poc.kafkaevents.sender;
+package mx.jhcue.poc.kafkaevents.producer;
 
 import lombok.RequiredArgsConstructor;
 import mx.jhcue.poc.kafkaevents.avro.MachineEvent;
 import mx.jhcue.poc.kafkaevents.config.ApplicationProperties;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.springframework.boot.actuate.context.properties.ConfigurationPropertiesReportEndpoint;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.function.Consumer;
-
 @Component
 @RequiredArgsConstructor
-public class MachineEventKafkaProducer implements Consumer<MachineEvent> {
+public class MachineEventKafkaProducer {
 
     private final KafkaTemplate<String, MachineEvent> kafkaTemplate;
     private final ApplicationProperties applicationProperties;
     private final KafkaProducerCallback<String, MachineEvent> callback;
 
-    @Override
-    public void accept(MachineEvent machineEvent) {
-        ProducerRecord<String, MachineEvent> producerRecord = new ProducerRecord<>(applicationProperties.getMachineEventTopic(), machineEvent);
+    public void send(MachineEvent machineEvent) {
+        final String key = machineEvent.getMachineId();
+        ProducerRecord<String, MachineEvent> producerRecord = new ProducerRecord<>(applicationProperties.getMachineEventTopic(), key, machineEvent);
         kafkaTemplate.send(producerRecord).addCallback(callback);
+        kafkaTemplate.flush();
     }
 }

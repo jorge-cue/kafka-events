@@ -1,4 +1,4 @@
-package mx.jhcue.poc.kafkaevents.sender;
+package mx.jhcue.poc.kafkaevents.producer;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.support.SendResult;
@@ -8,7 +8,6 @@ import org.springframework.util.concurrent.ListenableFutureCallback;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.Objects;
 
 @Component
 @Slf4j
