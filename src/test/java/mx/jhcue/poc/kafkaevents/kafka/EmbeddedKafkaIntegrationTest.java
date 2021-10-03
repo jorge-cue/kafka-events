@@ -9,6 +9,8 @@ import mx.jhcue.poc.kafkaevents.core.ProcessMachineEventService;
 import mx.jhcue.poc.kafkaevents.listener.MachineEventKafkaListener;
 import mx.jhcue.poc.kafkaevents.producer.MachineEventKafkaProducer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -23,9 +25,13 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -77,16 +83,21 @@ class EmbeddedKafkaIntegrationTest {
     @ParameterizedTest(name = INDEX_PLACEHOLDER + ": {0}")
     @MethodSource("machineEventStream")
     void produceListenMachineEvent(final String displayName, final MachineEvent actual) throws Exception {
-
-        machineEventKafkaProducer.send(actual);
+        Headers headers = new RecordHeaders();
+        headers.add(KafkaHeaders.CORRELATION_ID, actual.getMachineId().getBytes(StandardCharsets.UTF_8));
+        machineEventKafkaProducer.send(actual, headers);
         final var receivedOnTime = latch.await(30, TimeUnit.SECONDS);
 
         verify(machineEventKafkaListener).receive(consumerRecordArgumentCaptor.capture());
-        final var received = consumerRecordArgumentCaptor.getValue().value();
+        final var consumerRecord = consumerRecordArgumentCaptor.getValue();
+        final var received = consumerRecord.value();
+        final var correlationId = new String(consumerRecord.headers().headers(KafkaHeaders.CORRELATION_ID).iterator().next().value());
+
         assertAll(
                 () -> assertTrue(receivedOnTime, "Message was received at listener on time"),
                 () -> assertEquals(actual.getClass(), received.getClass(), "Sent and Received are of same class"),
-                () -> assertEquals(actual, received, "Sent and received records are equal")
+                () -> assertEquals(actual, received, "Sent and received records are equal"),
+                () -> assertEquals(actual.getMachineId(), correlationId, "Correlation id is carried-on successfully")
         );
     }
 

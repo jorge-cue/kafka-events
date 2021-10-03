@@ -1,20 +1,19 @@
-package mx.jhcue.poc.kafkaevents.dto;
+package mx.jhcue.poc.kafkaevents.core.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
+import org.springframework.util.MultiValueMap;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 @Builder
-public class MachineEventDTO {
+@NoArgsConstructor
+@AllArgsConstructor
+public class MachineEvent {
     private String eventType;
     private Long timestamp;
     private String machineId;
     private String operatorId;
-    private List<SensorValueDTO> sensors;
+    private MultiValueMap<String, Double> sensors;
 }

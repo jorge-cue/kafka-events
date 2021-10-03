@@ -6,6 +6,8 @@
 spring:
   kafka:
     client-id: proof-of-concept-001
+    admin:
+      fail-fast: true
     consumer:
       enable-auto-commit: true
       auto-offset-reset: earliest
@@ -15,10 +17,14 @@ spring:
       properties:
         # Use specific record or we get Avro's GenericRecord$Data
         specific.avro.reader: true
+        schema.registry.url: http://localhost:8081
     producer:
       acks: all
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      properties:
+        schema.registry.url: http://localhost:8081
+    bootstrap-servers: localhost:9092
   application:
     admin:
       enabled: true
