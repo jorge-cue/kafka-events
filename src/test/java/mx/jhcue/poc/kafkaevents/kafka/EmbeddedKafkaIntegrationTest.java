@@ -5,10 +5,10 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import mx.jhcue.poc.kafkaevents.avro.EventTypeEnum;
 import mx.jhcue.poc.kafkaevents.avro.MachineEvent;
 import mx.jhcue.poc.kafkaevents.avro.SensorValue;
-import mx.jhcue.poc.kafkaevents.core.ProcessMachineEventService;
 import mx.jhcue.poc.kafkaevents.listener.MachineEventKafkaListener;
 import mx.jhcue.poc.kafkaevents.producer.MachineEventKafkaProducer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,26 +17,29 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -59,9 +62,6 @@ class EmbeddedKafkaIntegrationTest {
     @SpyBean
     MachineEventKafkaListener machineEventKafkaListener;
 
-    @MockBean
-    ProcessMachineEventService processMachineEventService;
-
     @Captor
     ArgumentCaptor<ConsumerRecord<String, MachineEvent>> consumerRecordArgumentCaptor;
 
@@ -71,22 +71,24 @@ class EmbeddedKafkaIntegrationTest {
     void setUp() {
         latch = new CountDownLatch(1);
         doAnswer(invoke -> {
-            @SuppressWarnings("unchecked")
             final var consumerRecord = invoke.getArgument(0, ConsumerRecord.class);
-            log.info("Received record type {}\nKey: {}\nData: {}"
-                    , consumerRecord.value().getClass().getName(), consumerRecord.key(), consumerRecord.value());
+            log.info("Spy received record type {}\nKey: {}\nHeaders: {}\nData: {}"
+                    , consumerRecord.value().getClass().getName()
+                    , consumerRecord.key()
+                    , StreamSupport.stream(consumerRecord.headers().spliterator(), false)
+                            .collect(Collectors.toMap(Header::key, it -> new String(it.value())))
+                    , consumerRecord.value());
             latch.countDown();
             return null;
-        }).doCallRealMethod().when(machineEventKafkaListener).receive(any());
+        }).when(machineEventKafkaListener).receive(any());
     }
 
     @ParameterizedTest(name = INDEX_PLACEHOLDER + ": {0}")
     @MethodSource("machineEventStream")
-    void produceListenMachineEvent(final String displayName, final MachineEvent actual) throws Exception {
-        Headers headers = new RecordHeaders();
-        headers.add(KafkaHeaders.CORRELATION_ID, actual.getMachineId().getBytes(StandardCharsets.UTF_8));
+    void produceListenMachineEvent(final String displayName, final MachineEvent actual, Headers headers) throws Exception {
+        log.info("Executing test {}", displayName);
         machineEventKafkaProducer.send(actual, headers);
-        final var receivedOnTime = latch.await(30, TimeUnit.SECONDS);
+        final var receivedOnTime = latch.await(3, TimeUnit.SECONDS);
 
         verify(machineEventKafkaListener).receive(consumerRecordArgumentCaptor.capture());
         final var consumerRecord = consumerRecordArgumentCaptor.getValue();
@@ -115,7 +117,8 @@ class EmbeddedKafkaIntegrationTest {
                                 .setMachineId(machineId)
                                 .setOperatorId(operatorId)
                                 .setSensors(List.of())
-                                .build()),
+                                .build(),
+                        buildHeaders(machineId)),
                 Arguments.of("MachineEvent STATUS Event with sensors values",
                         MachineEvent.newBuilder()
                                 .setEventType(EventTypeEnum.STATUS)
@@ -126,7 +129,8 @@ class EmbeddedKafkaIntegrationTest {
                                         SensorValue.newBuilder().setSensorId(sensor1Id).setValue(1.0).build(),
                                         SensorValue.newBuilder().setSensorId(sensor2Id).setValue(0.8).build()
                                 ))
-                                .build()),
+                                .build(),
+                        buildHeaders(machineId)),
                 Arguments.of("MachineEvent BREAK Event with sensors",
                         MachineEvent.newBuilder()
                                 .setEventType(EventTypeEnum.BREAK)
@@ -137,7 +141,8 @@ class EmbeddedKafkaIntegrationTest {
                                         SensorValue.newBuilder().setSensorId(sensor1Id).setValue(-1.0).build(),
                                         SensorValue.newBuilder().setSensorId(sensor2Id).setValue(0.3).build()
                                 ))
-                                .build()),
+                                .build(),
+                        buildHeaders(machineId)),
                 Arguments.of("MachineEvent RESUME Event with sensors",
                         MachineEvent.newBuilder()
                                 .setEventType(EventTypeEnum.RESUME)
@@ -148,7 +153,8 @@ class EmbeddedKafkaIntegrationTest {
                                         SensorValue.newBuilder().setSensorId(sensor1Id).setValue(0.8).build(),
                                         SensorValue.newBuilder().setSensorId(sensor2Id).setValue(0.9).build()
                                 ))
-                                .build()),
+                                .build(),
+                        buildHeaders(machineId)),
                 Arguments.of("MachineEvent STOP Event without sensors",
                         MachineEvent.newBuilder()
                                 .setEventType(EventTypeEnum.STOP)
@@ -156,7 +162,18 @@ class EmbeddedKafkaIntegrationTest {
                                 .setMachineId(machineId)
                                 .setOperatorId(operatorId)
                                 .setSensors(List.of())
-                                .build()));
+                                .build(),
+                        buildHeaders(machineId))
+
+                );
+    }
+
+    private static Headers buildHeaders(String correlationId) {
+        Headers headers = new RecordHeaders();
+        headers.add(KafkaHeaders.CORRELATION_ID, correlationId.getBytes(StandardCharsets.UTF_8));
+        headers.add(KafkaHeaders.TIMESTAMP, ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME).getBytes(StandardCharsets.UTF_8));
+        headers.add(KafkaHeaders.TIMESTAMP_TYPE, "ISO_OFFSET_DATE_TIME".getBytes(StandardCharsets.UTF_8));
+        return headers;
     }
 
     @TestConfiguration

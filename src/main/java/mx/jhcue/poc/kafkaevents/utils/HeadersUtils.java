@@ -1,6 +1,7 @@
 package mx.jhcue.poc.kafkaevents.utils;
 
 import lombok.experimental.UtilityClass;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.springframework.http.HttpHeaders;
@@ -27,8 +28,10 @@ public class HeadersUtils {
     }
 
     public static MultiValueMap<String, String> makeReadable(Headers headers) {
-        MultiValueMap<String, String> readableHeaders = new LinkedMultiValueMap<>();
-        headers.forEach(header -> readableHeaders.add(header.key(), new String(header.value(), StandardCharsets.UTF_8)));
-        return readableHeaders;
+        MultiValueMap<String, String> result = new LinkedMultiValueMap<>();
+        for(Header header: headers) {
+            result.add(header.key(), new String(header.value(), StandardCharsets.UTF_8));
+        }
+        return result;
     }
 }
