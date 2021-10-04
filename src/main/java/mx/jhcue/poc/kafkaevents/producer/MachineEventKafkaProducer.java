@@ -20,11 +20,11 @@ public class MachineEventKafkaProducer {
     private final KafkaProducerCallback<String, MachineEvent> callback;
 
     public void send(MachineEvent machineEvent, Headers headers) {
-        log.info("Sending MachineEvent {} headers {}", machineEvent, HeadersUtils.makeReadable(headers));
+        final var topic = applicationProperties.getMachineEventTopic();
+        log.info("Sending to topic {}\nMachineEvent {}\nheaders {}", topic, machineEvent, HeadersUtils.makeReadable(headers));
         final String key = machineEvent.getMachineId();
-        ProducerRecord<String, MachineEvent> producerRecord = new ProducerRecord<>(applicationProperties.getMachineEventTopic(), key, machineEvent);
+        ProducerRecord<String, MachineEvent> producerRecord = new ProducerRecord<>(topic, key, machineEvent);
         headers.forEach(header -> producerRecord.headers().add(header));
         kafkaTemplate.send(producerRecord).addCallback(callback);
-        kafkaTemplate.flush();
     }
 }
